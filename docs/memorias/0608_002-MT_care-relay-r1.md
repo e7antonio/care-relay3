@@ -1,5 +1,10 @@
 # Memoria Técnica - care-relay-r1
 
+## ⚠️ NOTA DE SINCRONIZACIÓN
+**Esta memoria técnica está sincronizada con el código actual en server.js.**
+
+**Refleja únicamente las decisiones técnicas implementadas, no funcionalidades futuras.**
+
 ## 1. Introducción
 
 ### 1.1 Propósito del Documento

@@ -1,5 +1,12 @@
 # Documento de Arquitectura - care-relay-r1
 
+## ⚠️ NOTA DE SINCRONIZACIÓN
+**Esta documentación de arquitectura incluye componentes futuros no implementados.**
+
+**IMPLEMENTADO ACTUALMENTE**: Solo WebSocket Server (Socket.IO), REST API básica (Express), y Memory Store (Maps/Sets).
+
+**NO IMPLEMENTADO**: Load Balancer, Redis, Database, Winston, Prometheus, Event Manager como componente separado.
+
 ## 1. Visión General de la Arquitectura
 
 ### 1.1 Propósito
