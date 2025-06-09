@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
+const CircularBuffer = require('./circularBuffer');
 
 // Configuración del servidor
 const app = express();
@@ -19,6 +20,27 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Almacenar información de las conexiones
 const connections = new Map();
 const rooms = new Map();
+
+// Buffers circulares por canal
+const buffersPorCanal = {};
+const DEFAULT_BUFFER_SIZE = 1080;
+
+function canalKey({ habitacion, posicion, origen, canal }) {
+    return `${habitacion}.${posicion}.${origen}.${canal}.tap`;
+}
+
+function guardarEvento(meta, evento) {
+    const key = canalKey(meta);
+    if (!buffersPorCanal[key]) {
+        buffersPorCanal[key] = new CircularBuffer(DEFAULT_BUFFER_SIZE);
+    }
+    buffersPorCanal[key].push({ ...evento, ...meta, timestamp: new Date() });
+}
+
+function obtenerEventos(meta) {
+    const key = canalKey(meta);
+    return buffersPorCanal[key]?.getAll() || [];
+}
 
 // Middleware de Socket.IO para logging
 io.use((socket, next) => {
@@ -166,6 +188,14 @@ io.on('connection', (socket) => {
         });
     });
 
+    // Evento de stream para bufferizar por canal
+    socket.on('stream_event', (payload) => {
+        const { meta, evento } = payload || {};
+        if (meta && evento) {
+            guardarEvento(meta, evento);
+        }
+    });
+
     // Actualizar metadata del usuario
     socket.on('update_metadata', (metadata) => {
         const conn = connections.get(socket.id);
@@ -250,6 +280,13 @@ app.get('/stats', (req, res) => {
         uptime: process.uptime(),
         timestamp: new Date()
     });
+});
+
+// Obtener eventos de un canal específico
+app.get('/streams/:habitacion/:posicion/:origen/:canal/events', (req, res) => {
+    const { habitacion, posicion, origen, canal } = req.params;
+    const eventos = obtenerEventos({ habitacion, posicion, origen, canal });
+    res.json({ eventos });
 });
 
 // Endpoint de salud

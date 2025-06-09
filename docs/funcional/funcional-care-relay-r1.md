@@ -9,13 +9,13 @@ Esta versión de care-relay-r1 está alineada 100% con el código actual en serv
 - ✅ Gestión básica de salas (rooms)
 - ✅ Monitoreo de conexiones activas
 - ✅ API REST básica para estadísticas
+- ✅ Buffers circulares por canal
 
 **No Incluye (Out of Scope para esta versión):**
 - ❌ Nicknames (solo se usan IDs de socket)
 - ❌ Autenticación de usuarios
 - ❌ Validación estricta de mensajes
 - ❌ Persistencia de mensajes
-- ❌ Buffers circulares
 - ❌ Canales semánticos
 - ❌ Encriptación de mensajes
 - ❌ Moderación de contenido
@@ -337,8 +337,11 @@ socket.emit('get_rooms_info');
   }
   ```
 
+**GET /streams/:habitacion/:posicion/:origen/:canal/events**
+- **Descripción**: Recupera los eventos almacenados en el buffer del canal indicado.
+
 **Características de la API REST Actual**:
-- Solo 2 endpoints disponibles: `/health` y `/stats`
+- Endpoints disponibles: `/health`, `/stats` y `/streams/:habitacion/:posicion/:origen/:canal/events`
 - Respuesta en JSON simple
 - No autenticación ni validaciones
 - Datos en tiempo real desde memoria
@@ -730,7 +733,7 @@ Response:
 | Autenticación | ❌ NO IMPLEMENTADO | Sistema completamente abierto |
 | Validación de mensajes | ❌ NO IMPLEMENTADO | Se acepta cualquier input |
 | Persistencia de mensajes | ❌ NO IMPLEMENTADO | Todo en memoria, se pierde al reiniciar |
-| Buffers circulares | ❌ NO IMPLEMENTADO | No hay historial de mensajes |
+| Buffers circulares | ✅ IMPLEMENTADO | Historial reciente en memoria por canal |
 | Canales semánticos | ❌ NO IMPLEMENTADO | Solo salas básicas por nombre |
 | Rate limiting | ❌ NO IMPLEMENTADO | No hay límites de uso |
 | Encriptación | ❌ NO IMPLEMENTADO | Mensajes en texto plano |
