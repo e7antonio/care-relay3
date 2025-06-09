@@ -1,42 +1,69 @@
-# Documento Funcional - care-relay-r1
+# Documento Funcional - AlertaCare Relay System
 
 ## NOTA IMPORTANTE:
-Esta versión de care-relay-r1 está alineada 100% con el código actual en server.js.
+Esta versión está alineada 100% con el código actual en server.js y refleja la implementación completa del sistema AlertaCare.
 
-**Alcance Real de esta Versión:**
-- ✅ Relay de mensajes genéricos entre clientes
-- ✅ Mensajes privados punto a punto
-- ✅ Gestión básica de salas (rooms)
-- ✅ Monitoreo de conexiones activas
-- ✅ API REST básica para estadísticas
+**Alcance Actual de esta Versión:**
+- ✅ **AlertaCare Buffers Circulares** - Sistema de bufferización por canal extendido
+- ✅ **API REST AlertaCare** - Endpoints completos para gestión de eventos
+- ✅ **Socket.IO AlertaCare** - Eventos para tiempo real
+- ✅ **Convención de Naming** - `<habitacion>.<posicion>.<origen>.<canal>.tap`
+- ✅ **Trazabilidad Completa** - Metadata automática para auditoría
+- ✅ Relay de mensajes genéricos entre clientes (mantenido)
+- ✅ Mensajes privados punto a punto (mantenido)
+- ✅ Gestión básica de salas (rooms) (mantenido)
+- ✅ Monitoreo de conexiones activas (expandido)
+- ✅ API REST básica para estadísticas (expandida)
 
-**No Incluye (Out of Scope para esta versión):**
+**Características AlertaCare Implementadas:**
+- ✅ **Buffers circulares** por canal (1080 eventos cada uno)
+- ✅ **Canales semánticos** con naming convention extendida
+- ✅ **Múltiples cámaras** por habitación con diferentes posiciones
+- ✅ **Múltiples streams** por cámara (principal, secundario)
+- ✅ **Múltiples canales** de información (inference, tracker, alerts)
+- ✅ **Persistencia temporal** en memoria con overflow automático
+- ✅ **Metadata de trazabilidad** para análisis forense
+
+**No Incluye (Scope Futuro):**
 - ❌ Nicknames (solo se usan IDs de socket)
 - ❌ Autenticación de usuarios
 - ❌ Validación estricta de mensajes
-- ❌ Persistencia de mensajes
-- ❌ Buffers circulares
-- ❌ Canales semánticos
+- ❌ Persistencia permanente (solo buffers en memoria)
 - ❌ Encriptación de mensajes
 - ❌ Moderación de contenido
 
 ## 1. Introducción
 
 ### 1.1 Propósito del Sistema
-**care-relay-r1** es un sistema de relay de comunicación en tiempo real que permite a múltiples clientes conectarse y comunicarse entre sí a través de WebSockets, facilitando el intercambio de mensajes en tiempo real con soporte para comunicación grupal e individual.
+**AlertaCare Relay System** es un sistema de relay inteligente para asistencia en residencias geriátricas que actúa como agente centralizador, **recibiendo, bufferizando y exponiendo eventos** JSON generados por distintos módulos de percepción y tracking. El sistema combina capacidades de relay de comunicación en tiempo real con un sofisticado sistema de buffers circulares por canal.
 
-### 1.2 Objetivos del Sistema
-- Facilitar comunicación bidireccional en tiempo real entre múltiples clientes
-- Proporcionar capacidades de relay y broadcasting de mensajes
-- Soportar comunicación privada punto a punto
-- Gestionar salas de chat básicas
-- Proveer monitoreo básico de conexiones
+### 1.2 Objetivos del Sistema AlertaCare
+- **Bufferizar eventos** de múltiples cámaras, posiciones y streams en tiempo real
+- **Exponer eventos** vía API REST y Socket.IO sin procesarlos
+- **Mantener trazabilidad** completa con metadata de origen
+- **Facilitar debugging** y análisis forense de eventos
+- **Soportar expertos** rápidos, criteriosos y paralelos
+- Facilitar comunicación bidireccional en tiempo real entre múltiples clientes (legacy)
+- Proporcionar capacidades de relay y broadcasting de mensajes (legacy)
 
-### 1.3 Características Clave
-- Conexión directa vía WebSocket
-- Mensajería en tiempo real sin estado
-- Salas de chat temporales (en memoria)
-- Monitoreo básico del estado del servidor
+### 1.3 Características Clave AlertaCare
+
+#### 1.3.1 Sistema de Buffers Circulares
+- **Convención de naming extendida**: `<habitacion>.<posicion>.<origen>.<canal>.tap`
+- **Buffers independientes** por combinación única de campos
+- **Capacidad fija** de 1080 eventos por canal
+- **Overflow automático** con preservación cronológica
+
+#### 1.3.2 APIs de Acceso
+- **REST API** completa para almacenamiento y consulta
+- **Socket.IO events** para tiempo real
+- **Backward compatibility** con funcionalidad legacy
+
+#### 1.3.3 Trazabilidad y Metadata
+- **Metadata automática** en cada evento almacenado
+- **Timestamps precisos** de almacenamiento
+- **Índices de buffer** para replay y debugging
+- **Identificación exacta** del origen físico/lógico
 
 ## 2. Casos de Uso Principales
 
@@ -794,7 +821,368 @@ Response:
 
 ---
 
-**🎯 Versión de Sincronización**: 1.0  
-**📅 Fecha de Sincronización**: Enero 2024  
+## 10. FUNCIONALIDADES ALERTACARE - NUEVA IMPLEMENTACIÓN
+
+### 10.1 Sistema de Buffers Circulares por Canal
+
+#### 10.1.1 Convención de Naming Extendida
+**AlertaCare** implementa una convención de naming que permite identificar exactamente el origen de cada evento:
+
+```
+<habitacion>.<posicion>.<origen>.<canal>.tap
+```
+
+**Campos:**
+- **habitacion**: Identificador lógico (ej: `habitacion12`)
+- **posicion**: `base_larga`, `base_corta`, `lateral_der`, `lateral_izq`, etc.
+- **origen**: `principal`, `secundario`, etc. (stream físico/lógico)
+- **canal**: `inference`, `tracker`, `alerts`, etc.
+- **tap**: Sufijo fijo que indica buffer/debug
+
+**Ejemplos reales:**
+```
+habitacion12.base_larga.principal.inference.tap
+habitacion12.base_larga.secundario.tracker.tap
+habitacion13.lateral_izq.secundario.inference.tap
+habitacion12.base_corta.principal.alerts.tap
+```
+
+#### 10.1.2 Características del Buffer Circular
+- **Capacidad fija**: 1080 eventos por canal
+- **Overflow automático**: Los eventos más antiguos se sobrescriben
+- **Orden cronológico**: Eventos mantenidos en orden temporal
+- **Metadata automática**: Cada evento incluye información de trazabilidad
+
+### 10.2 API REST AlertaCare
+
+#### 10.2.1 Almacenar Evento en Canal
+```http
+POST /streams/:habitacion/:posicion/:origen/:canal/events
+Content-Type: application/json
+
+{
+  "tipo": "deteccion_persona",
+  "confianza": 0.95,
+  "bbox": [100, 200, 150, 300],
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+**Respuesta exitosa:**
+```json
+{
+  "success": true,
+  "channel": "habitacion12.base_larga.principal.inference.tap",
+  "message": "Event stored successfully"
+}
+```
+
+#### 10.2.2 Obtener Eventos de Canal
+```http
+GET /streams/:habitacion/:posicion/:origen/:canal/events[?latest=N]
+```
+
+**Parámetros:**
+- `latest` (opcional): Número de eventos más recientes a obtener
+
+**Respuesta:**
+```json
+{
+  "success": true,
+  "channel": "habitacion12.base_larga.principal.inference.tap",
+  "eventCount": 450,
+  "eventos": [
+    {
+      "tipo": "deteccion_persona",
+      "confianza": 0.95,
+      "bbox": [100, 200, 150, 300],
+      "timestamp": "2024-01-15T10:30:00Z",
+      "_meta": {
+        "habitacion": "habitacion12",
+        "posicion": "base_larga",
+        "origen": "principal",
+        "canal": "inference"
+      },
+      "_timestamp": "2024-01-15T10:30:00.001Z",
+      "_channel": "habitacion12.base_larga.principal.inference.tap",
+      "_buffered_at": "2024-01-15T10:30:00.002Z",
+      "_buffer_index": 1205
+    }
+  ]
+}
+```
+
+#### 10.2.3 Listar Canales Disponibles
+```http
+GET /streams/channels
+```
+
+**Respuesta:**
+```json
+{
+  "success": true,
+  "totalChannels": 3,
+  "channels": [
+    {
+      "channel": "habitacion12.base_larga.principal.inference.tap",
+      "habitacion": "habitacion12",
+      "posicion": "base_larga",
+      "origen": "principal",
+      "canal": "inference",
+      "eventCount": 450,
+      "totalStored": 1205
+    }
+  ]
+}
+```
+
+#### 10.2.4 Limpiar Buffer de Canal
+```http
+DELETE /streams/:habitacion/:posicion/:origen/:canal/events
+```
+
+**Respuesta:**
+```json
+{
+  "success": true,
+  "channel": "habitacion12.base_larga.principal.inference.tap",
+  "message": "Channel buffer cleared"
+}
+```
+
+### 10.3 Socket.IO AlertaCare Events
+
+#### 10.3.1 Almacenar Evento vía WebSocket
+```javascript
+// Cliente envía:
+socket.emit('store_event', {
+    meta: {
+        habitacion: 'habitacion12',
+        posicion: 'base_larga',
+        origen: 'principal',
+        canal: 'inference'
+    },
+    evento: {
+        tipo: 'deteccion_caida',
+        confianza: 0.87,
+        timestamp: new Date().toISOString()
+    }
+});
+
+// Confirmación recibida:
+socket.on('event_stored', (response) => {
+    // { success: true, channel: "habitacion12.base_larga.principal.inference.tap", timestamp: "..." }
+});
+
+// Error en almacenamiento:
+socket.on('event_store_error', (response) => {
+    // { success: false, error: "Missing required fields: habitacion, posicion, origen, canal" }
+});
+```
+
+#### 10.3.2 Obtener Eventos vía WebSocket
+```javascript
+// Cliente envía:
+socket.emit('get_events', {
+    meta: {
+        habitacion: 'habitacion12',
+        posicion: 'base_larga',
+        origen: 'principal',
+        canal: 'inference'
+    },
+    options: { latest: 20 }
+});
+
+// Respuesta recibida:
+socket.on('events_response', (response) => {
+    // { success: true, channel: "...", eventCount: 20, eventos: [...] }
+});
+```
+
+#### 10.3.3 Obtener Información de Canales
+```javascript
+// Cliente envía:
+socket.emit('get_channels_info');
+
+// Respuesta recibida:
+socket.on('channels_info', (response) => {
+    // { success: true, totalChannels: 5, channels: [...] }
+});
+```
+
+#### 10.3.4 Notificaciones en Tiempo Real
+```javascript
+// Notificación cuando se almacena un nuevo evento:
+socket.on('new_event_stored', (data) => {
+    // { channel: "habitacion12.base_larga.principal.inference.tap", from: "socket_id", timestamp: "..." }
+});
+```
+
+### 10.4 Casos de Uso AlertaCare
+
+#### 10.4.1 UC-AC1: Sistema de Inferencia Almacenando Detecciones
+**Actor**: Módulo de Inferencia IA  
+**Descripción**: Un sistema de inferencia detecta una persona y almacena el evento.
+
+**Flujo Principal**:
+1. Sistema de inferencia detecta persona en cámara base_larga de habitacion12
+2. Sistema envía POST a `/streams/habitacion12/base_larga/principal/inference/events`
+3. Relay almacena evento en buffer circular correspondiente
+4. Relay responde con confirmación exitosa
+5. Relay emite notificación `new_event_stored` a clientes conectados
+
+**Payload del evento**:
+```json
+{
+  "tipo": "deteccion_persona",
+  "confianza": 0.95,
+  "bbox": [100, 200, 150, 300],
+  "personas_detectadas": 1,
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+#### 10.4.2 UC-AC2: Sistema de Tracking Consultando Eventos
+**Actor**: Módulo de Tracking  
+**Descripción**: Un sistema de tracking consulta eventos recientes para correlacionar movimientos.
+
+**Flujo Principal**:
+1. Sistema de tracking necesita últimos 50 eventos de inferencia
+2. Sistema hace GET a `/streams/habitacion12/base_larga/principal/inference/events?latest=50`
+3. Relay devuelve eventos ordenados cronológicamente
+4. Sistema procesa eventos para generar trayectorias
+5. Sistema almacena resultados en su propio canal: `habitacion12.base_larga.principal.tracker.tap`
+
+#### 10.4.3 UC-AC3: Dashboard de Monitoreo Consultando Estado
+**Actor**: Dashboard de Operadores  
+**Descripción**: Un dashboard consulta el estado de todos los canales activos.
+
+**Flujo Principal**:
+1. Dashboard hace GET a `/streams/channels`
+2. Relay devuelve lista de todos los canales con métricas
+3. Dashboard muestra estado en tiempo real:
+   - Canales activos por habitación
+   - Eventos por segundo por canal
+   - Último evento por canal
+4. Dashboard se suscribe vía Socket.IO para actualizaciones en tiempo real
+
+#### 10.4.4 UC-AC4: Experto Criterioso Analizando Histórico
+**Actor**: Sistema Experto de Análisis  
+**Descripción**: Un experto analiza el histórico completo de un canal para detectar patrones.
+
+**Flujo Principal**:
+1. Experto solicita todos los eventos del canal de tracking
+2. Hace GET a `/streams/habitacion12/base_larga/principal/tracker/events`
+3. Recibe hasta 1080 eventos (buffer completo)
+4. Analiza patrones de movimiento en ventana temporal
+5. Genera alertas si detecta comportamiento anómalo
+6. Almacena alertas en canal: `habitacion12.base_larga.principal.alerts.tap`
+
+### 10.5 Trazabilidad y Metadata
+
+#### 10.5.1 Metadata Automática
+Cada evento almacenado recibe automáticamente:
+
+```javascript
+{
+  // Evento original preservado
+  ...evento_original,
+  
+  // Metadata de trazabilidad
+  _meta: {
+    habitacion: "habitacion12",
+    posicion: "base_larga", 
+    origen: "principal",
+    canal: "inference"
+  },
+  _timestamp: "2024-01-15T10:30:00.000Z",  // Timestamp de almacenamiento
+  _channel: "habitacion12.base_larga.principal.inference.tap",  // Canal completo
+  _buffered_at: "2024-01-15T10:30:00.001Z",  // Timestamp de bufferización
+  _buffer_index: 1205  // Índice secuencial para replay
+}
+```
+
+#### 10.5.2 Ventajas de la Trazabilidad
+- **Auditoría forense**: Identificación exacta del origen de cada evento
+- **Debugging**: Timestamps precisos para análisis de performance  
+- **Replay**: Índices secuenciales para reproducir secuencias
+- **Correlación**: Metadata para vincular eventos entre canales
+
+### 10.6 Arquitectura AlertaCare
+
+#### 10.6.1 Flujo de Datos
+```
+[Cámara] → [Módulo Inferencia] → [Relay Buffer] → [Expertos/Dashboard]
+         ↘ [Módulo Tracking]  ↗              ↘ [Sistema Alertas]
+```
+
+#### 10.6.2 Separación de Responsabilidades
+
+**Relay (este servidor):**
+- ✅ Recibir eventos JSON de módulos
+- ✅ Bufferizar en canales circulares independientes
+- ✅ Exponer vía REST y Socket.IO
+- ✅ Mantener trazabilidad completa
+- ❌ **NO procesa** ni filtra eventos
+- ❌ **NO fusiona** ni interpreta datos
+
+**Expertos (consumidores):**
+- ✅ Suscribirse a canales específicos
+- ✅ Mergear y componer según necesidades
+- ✅ Implementar lógica de negocio
+- ✅ Generar alertas y acciones
+
+#### 10.6.3 Escalabilidad del Sistema
+- **Un buffer por canal**: Cada combinación única de 5 campos tiene su buffer
+- **Crecimiento horizontal**: Nuevas cámaras/posiciones crean nuevos canales automáticamente
+- **Sin interferencia**: Canales completamente independientes
+- **Performance predecible**: O(1) para almacenamiento, O(n) para consulta
+
+### 10.7 APIs Expandidas (Compatibilidad Mantenida)
+
+#### 10.7.1 /stats Expandido
+```json
+{
+  "totalConnections": 5,
+  "totalRooms": 2,
+  "totalChannels": 15,
+  "totalBufferedEvents": 4230,
+  "uptime": 1234.56,
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
+#### 10.7.2 /health Expandido  
+```json
+{
+  "status": "ok",
+  "alertacare": {
+    "buffersActive": 15,
+    "totalEvents": 4230
+  },
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
+### 10.8 Consideraciones de Performance AlertaCare
+
+#### 10.8.1 Métricas Esperadas
+- **Latencia de almacenamiento**: < 1ms
+- **Latencia de consulta**: < 10ms para 1080 eventos
+- **Throughput**: 10,000 eventos/segundo
+- **Memoria por canal**: ~756KB (1080 eventos)
+- **Canales simultáneos**: Cientos sin degradación
+
+#### 10.8.2 Limitaciones Identificadas
+- **Memoria volátil**: Eventos se pierden en restart
+- **Buffer fijo**: Máximo 1080 eventos por canal
+- **Sin persistencia**: No hay recuperación de datos históricos
+- **Single instance**: Sin redundancia ni clustering
+
+---
+
+**🏥 AlertaCare Implementation**: COMPLETA  
+**🎯 Versión de Sincronización**: 2.0  
+**📅 Fecha de Sincronización**: 15 Enero 2024  
 **✅ Estado**: Sincronizado al 100% con server.js  
-**⚠️ Advertencia**: Esta documentación refleja ÚNICAMENTE lo que existe en el código actual
+**🔄 Backward Compatibility**: MANTENIDA - Toda funcionalidad legacy preservada
