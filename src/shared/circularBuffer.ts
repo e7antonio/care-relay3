@@ -19,4 +19,4 @@ export default class CircularBuffer<T> {
         if (!this.filled) return this.buffer.slice(0, this.index) as T[];
         return this.buffer.slice(this.index).concat(this.buffer.slice(0, this.index)) as T[];
     }
-}
+} 

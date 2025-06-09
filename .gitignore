@@ -1,2 +1,6 @@
 node_modules
 /dist
+/.idea/modules.xml
+/package-lock.json
+/.idea/vcs.xml
+/.idea/care-relay.iml
