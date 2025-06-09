@@ -1,0 +1,5 @@
+/node_modules/
+/.idea/.gitignore
+/.idea/care-relay.iml
+/.idea/modules.xml
+/.idea/vcs.xml
