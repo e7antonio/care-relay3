@@ -3,7 +3,7 @@
 ## ⚠️ NOTA DE SINCRONIZACIÓN
 **Esta documentación de arquitectura incluye componentes futuros no implementados.**
 
-**IMPLEMENTADO ACTUALMENTE**: Solo WebSocket Server (Socket.IO), REST API básica (Express), y Memory Store (Maps/Sets).
+**IMPLEMENTADO ACTUALMENTE**: WebSocket Server (Socket.IO), REST API básica (Express) y buffers circulares en memoria.
 
 **NO IMPLEMENTADO**: Load Balancer, Redis, Database, Winston, Prometheus, Event Manager como componente separado.
 
@@ -213,6 +213,20 @@ stateDiagram-v2
     
     Authenticated --> Disconnected: disconnect
     Disconnected --> [*]
+```
+
+### 3.4 Buffers Circulares por Canal
+
+El sistema almacena los eventos recibidos en buffers circulares separados por la clave:
+
+```
+<habitacion>.<posicion>.<origen>.<canal>.tap
+```
+
+Cada buffer es volátil y mantiene los últimos eventos asociados a dicho canal. Los eventos pueden consultarse vía:
+
+```
+GET /streams/:habitacion/:posicion/:origen/:canal/events
 ```
 
 ## 4. Flujo de Datos y Comunicación
