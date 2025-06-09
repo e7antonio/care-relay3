@@ -1,13 +1,13 @@
-const express = require('express');
-const http = require('http');
-const socketIo = require('socket.io');
-const path = require('path');
-const CircularBuffer = require('./circularBuffer');
+import express, { Request, Response } from 'express';
+import http from 'http';
+import { Server as SocketIOServer, Socket } from 'socket.io';
+import path from 'path';
+import CircularBuffer from './circularBuffer';
 
 // Configuración del servidor
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server, {
+const io = new SocketIOServer(server, {
     cors: {
         origin: "*",
         methods: ["GET", "POST"]
@@ -15,21 +15,34 @@ const io = socketIo(server, {
 });
 
 // Servir archivos estáticos
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, '../public')));
 
-// Almacenar información de las conexiones
-const connections = new Map();
-const rooms = new Map();
+interface ConnectionInfo {
+    id: string;
+    rooms: Set<string>;
+    metadata: Record<string, unknown>;
+    connectedAt: Date;
+}
+
+interface Meta {
+    habitacion: string;
+    posicion: string;
+    origen: string;
+    canal: string;
+}
+
+const connections = new Map<string, ConnectionInfo>();
+const rooms = new Map<string, Set<string>>();
 
 // Buffers circulares por canal
-const buffersPorCanal = {};
+const buffersPorCanal: Record<string, CircularBuffer<any>> = {};
 const DEFAULT_BUFFER_SIZE = 1080;
 
-function canalKey({ habitacion, posicion, origen, canal }) {
+function canalKey({ habitacion, posicion, origen, canal }: Meta): string {
     return `${habitacion}.${posicion}.${origen}.${canal}.tap`;
 }
 
-function guardarEvento(meta, evento) {
+function guardarEvento(meta: Meta, evento: Record<string, unknown>): void {
     const key = canalKey(meta);
     if (!buffersPorCanal[key]) {
         buffersPorCanal[key] = new CircularBuffer(DEFAULT_BUFFER_SIZE);
@@ -37,7 +50,7 @@ function guardarEvento(meta, evento) {
     buffersPorCanal[key].push({ ...evento, ...meta, timestamp: new Date() });
 }
 
-function obtenerEventos(meta) {
+function obtenerEventos(meta: Meta): any[] {
     const key = canalKey(meta);
     return buffersPorCanal[key]?.getAll() || [];
 }
@@ -48,11 +61,11 @@ io.use((socket, next) => {
     next();
 });
 
-io.on('connection', (socket) => {
+io.on('connection', (socket: Socket) => {
     // Registrar nueva conexión
     connections.set(socket.id, {
         id: socket.id,
-        rooms: new Set(),
+        rooms: new Set<string>(),
         metadata: {},
         connectedAt: new Date()
     });
@@ -73,7 +86,7 @@ io.on('connection', (socket) => {
     });
 
     // Manejar relay de mensajes generales
-    socket.on('relay_message', (data) => {
+    socket.on('relay_message', (data: any) => {
         console.log(`Relaying message from ${socket.id}:`, data);
 
         // Retransmitir a todos excepto al emisor
@@ -85,7 +98,7 @@ io.on('connection', (socket) => {
     });
 
     // Manejar relay de mensajes privados
-    socket.on('private_message', (data) => {
+    socket.on('private_message', (data: { targetId: string; message: any }) => {
         const { targetId, message } = data;
 
         if (connections.has(targetId)) {
@@ -109,18 +122,18 @@ io.on('connection', (socket) => {
     });
 
     // Manejar salas/rooms
-    socket.on('join_room', (roomName) => {
+    socket.on('join_room', (roomName: string) => {
         socket.join(roomName);
 
         // Actualizar información de conexión
-        const conn = connections.get(socket.id);
+        const conn = connections.get(socket.id)!;
         conn.rooms.add(roomName);
 
         // Actualizar información de la sala
         if (!rooms.has(roomName)) {
             rooms.set(roomName, new Set());
         }
-        rooms.get(roomName).add(socket.id);
+        rooms.get(roomName)!.add(socket.id);
 
         console.log(`${socket.id} se unió a la sala: ${roomName}`);
 
@@ -128,26 +141,26 @@ io.on('connection', (socket) => {
         socket.to(roomName).emit('user_joined_room', {
             userId: socket.id,
             room: roomName,
-            roomSize: rooms.get(roomName).size
+            roomSize: rooms.get(roomName)!.size
         });
 
         socket.emit('joined_room', {
             room: roomName,
-            roomSize: rooms.get(roomName).size
+            roomSize: rooms.get(roomName)!.size
         });
     });
 
-    socket.on('leave_room', (roomName) => {
+    socket.on('leave_room', (roomName: string) => {
         socket.leave(roomName);
 
         // Actualizar información de conexión
-        const conn = connections.get(socket.id);
+        const conn = connections.get(socket.id)!;
         conn.rooms.delete(roomName);
 
         // Actualizar información de la sala
         if (rooms.has(roomName)) {
-            rooms.get(roomName).delete(socket.id);
-            if (rooms.get(roomName).size === 0) {
+            rooms.get(roomName)!.delete(socket.id);
+            if (rooms.get(roomName)!.size === 0) {
                 rooms.delete(roomName);
             }
         }
@@ -158,12 +171,12 @@ io.on('connection', (socket) => {
         socket.to(roomName).emit('user_left_room', {
             userId: socket.id,
             room: roomName,
-            roomSize: rooms.has(roomName) ? rooms.get(roomName).size : 0
+            roomSize: rooms.has(roomName) ? rooms.get(roomName)!.size : 0
         });
     });
 
     // Relay de mensajes en salas
-    socket.on('room_message', (data) => {
+    socket.on('room_message', (data: { room: string; message: any }) => {
         const { room, message } = data;
 
         console.log(`Room message from ${socket.id} to room ${room}:`, message);
@@ -178,7 +191,7 @@ io.on('connection', (socket) => {
     });
 
     // Broadcast de datos (relay general)
-    socket.on('broadcast_data', (data) => {
+    socket.on('broadcast_data', (data: any) => {
         console.log(`Broadcasting data from ${socket.id}:`, data);
 
         socket.broadcast.emit('broadcast_data', {
@@ -189,16 +202,16 @@ io.on('connection', (socket) => {
     });
 
     // Evento de stream para bufferizar por canal
-    socket.on('stream_event', (payload) => {
-        const { meta, evento } = payload || {};
+    socket.on('stream_event', (payload: { meta: Meta; evento: Record<string, unknown> }) => {
+        const { meta, evento } = payload || ({} as any);
         if (meta && evento) {
             guardarEvento(meta, evento);
         }
     });
 
     // Actualizar metadata del usuario
-    socket.on('update_metadata', (metadata) => {
-        const conn = connections.get(socket.id);
+    socket.on('update_metadata', (metadata: Record<string, unknown>) => {
+        const conn = connections.get(socket.id)!;
         conn.metadata = { ...conn.metadata, ...metadata };
 
         // Notificar a todos sobre la actualización
@@ -237,7 +250,7 @@ io.on('connection', (socket) => {
     });
 
     // Manejar desconexión
-    socket.on('disconnect', (reason) => {
+    socket.on('disconnect', (reason: string) => {
         console.log(`Cliente desconectado: ${socket.id}, razón: ${reason}`);
 
         // Limpiar información de salas
@@ -245,15 +258,15 @@ io.on('connection', (socket) => {
         if (conn) {
             conn.rooms.forEach(roomName => {
                 if (rooms.has(roomName)) {
-                    rooms.get(roomName).delete(socket.id);
-                    if (rooms.get(roomName).size === 0) {
+                    rooms.get(roomName)!.delete(socket.id);
+                    if (rooms.get(roomName)!.size === 0) {
                         rooms.delete(roomName);
                     } else {
                         // Notificar a otros en la sala
                         socket.to(roomName).emit('user_left_room', {
                             userId: socket.id,
                             room: roomName,
-                            roomSize: rooms.get(roomName).size
+                            roomSize: rooms.get(roomName)!.size
                         });
                     }
                 }
@@ -273,7 +286,7 @@ io.on('connection', (socket) => {
 });
 
 // Endpoint para estadísticas
-app.get('/stats', (req, res) => {
+app.get('/stats', (_req: Request, res: Response) => {
     res.json({
         totalConnections: connections.size,
         totalRooms: rooms.size,
@@ -283,14 +296,14 @@ app.get('/stats', (req, res) => {
 });
 
 // Obtener eventos de un canal específico
-app.get('/streams/:habitacion/:posicion/:origen/:canal/events', (req, res) => {
-    const { habitacion, posicion, origen, canal } = req.params;
+app.get('/streams/:habitacion/:posicion/:origen/:canal/events', (req: Request, res: Response) => {
+    const { habitacion, posicion, origen, canal } = req.params as any;
     const eventos = obtenerEventos({ habitacion, posicion, origen, canal });
     res.json({ eventos });
 });
 
 // Endpoint de salud
-app.get('/health', (req, res) => {
+app.get('/health', (_req: Request, res: Response) => {
     res.json({ status: 'ok', timestamp: new Date() });
 });
 
