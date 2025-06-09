@@ -17,3 +17,11 @@ GET /streams/:habitacion/:posicion/:origen/:canal/events
 ```
 
 Los buffers son volátiles y por defecto almacenan hasta 1080 eventos por canal.
+
+## Uso
+
+```bash
+npm run build   # compila TypeScript en dist/
+npm start       # ejecuta el servidor compilado
+npm run dev     # ejecuta en modo desarrollo con ts-node
+```
