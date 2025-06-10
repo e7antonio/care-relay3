@@ -1,6 +1,7 @@
 import express from 'express';
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
+import cors from 'cors';
 import path from 'path';
 
 // Servicios principales
@@ -87,6 +88,13 @@ class CareRelayServer {
     }
 
     private setupExpress(): void {
+        // Configurar CORS
+        this.app.use(cors({
+            origin: "*",
+            methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            allowedHeaders: ["Content-Type", "Authorization"]
+        }));
+        
         // Servir archivos estáticos
         this.app.use(express.static(path.join(__dirname, '../public')));
         
